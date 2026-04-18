@@ -30,8 +30,16 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 import mx.unam.fc.icat.pomodorotimer.view.SessionHistoryActivity;
 import mx.unam.fc.icat.pomodorotimer.view.PreferencesActivity;
+
+import mx.unam.fc.icat.pomodorotimer.model.Session;
+import mx.unam.fc.icat.pomodorotimer.model.SessionManager;
+
 
 /**
  * Actividad principal que gestiona el ciclo de vida del temporizador Pomodoro.
@@ -85,6 +93,22 @@ public class MainActivity extends AppCompatActivity {
     private SessionMode currentMode = SessionMode.FOCUS;
     private long timeLeftMillis = FOCUS_DURATION_MS;
     private int focusSessionsCompleted = 0;
+
+    //  Datos de sesión activa
+    /** Hora en que comenzó la sesión actual (para registrar en el historial). */
+    private String sessionStartTime = "";
+    /** Fecha ISO de hoy ("yyyy-MM-dd") para el campo sortDate en DB. */
+    private String todaySortDate    = "";
+    // Capa de datos
+    private SessionManager sessionManager;
+
+    // Formatos de fecha y hora 
+    private static final SimpleDateFormat FMT_DATE_DISPLAY =
+            new SimpleDateFormat("EEE, dd MMM yyyy", new Locale("es", "MX"));
+    private static final SimpleDateFormat FMT_DATE_SORT    =
+            new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+    private static final SimpleDateFormat FMT_TIME         =
+            new SimpleDateFormat("HH:mm", Locale.US);
 
 
     /**
@@ -377,12 +401,13 @@ public class MainActivity extends AppCompatActivity {
      */
     private void resetTimer() {
         // Si había una sesión activa, la registramos como interrumpida.
-        if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS) {
-            //saveSession(false);
+        if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS
+              && !sessionStartTime.isEmpty()) {
+            saveSession(false);
         }
         cancelTimer();
         timerState   = TimerState.IDLE;
-        //sessionStartTime = "";
+        sessionStartTime = "";
         resetModeTime();
         btnStartStop.setText(R.string.btn_start);
     }
@@ -396,8 +421,9 @@ public class MainActivity extends AppCompatActivity {
      */
     private void skipToNextSession() {
         // Registramos la sesión de enfoque como interrumpida si estaba activa.
-        if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS) {
-            //saveSession(false);
+        if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS &&
+                !sessionStartTime.isEmpty()) {
+            saveSession(false);
         }
         cancelTimer();
         // Simulamos el mismo avance de estado que ocurriría al finalizar.
@@ -408,6 +434,45 @@ public class MainActivity extends AppCompatActivity {
         btnStartStop.setText(R.string.btn_start);
     }
 
+
+    /**
+     * Construye un objeto {@link Session} con los datos de la sesión
+     * actual y lo entrega al {@link SessionManager} para su persistencia.
+     *
+     * @param completed {@code true} si la sesión se completó normalmente;
+     *                  {@code false} si fue interrumpida por el usuario.
+     */
+    private void saveSession(boolean completed) {
+        // Determinamos el tipo en texto legible.
+        String type;
+        int    durationMin;
+        switch (currentMode) {
+            case BREAK:
+                type        = "Descanso";
+                durationMin = (int) (BREAK_DURATION_MS / 60_000);
+                break;
+            case REST:
+                type        = "Descanso largo";
+                durationMin = (int) (REST_DURATION_MS  / 60_000);
+                break;
+            default:
+                type        = "Enfoque";
+                durationMin = (int) (FOCUS_DURATION_MS / 60_000);
+                break;
+        }
+
+        Date   now         = new Date();
+        String dateDisplay = FMT_DATE_DISPLAY.format(now);
+        String startTime   = sessionStartTime.isEmpty()
+                ? FMT_TIME.format(now)
+                : sessionStartTime;
+
+        Session session = new Session(
+                type, dateDisplay, startTime, durationMin, completed, todaySortDate);
+
+        // SessionManager ejecuta la inserción en un hilo secundario.
+        sessionManager.addSession(session);
+    }
 
     /**
      * Avanza el modo de la sesión siguiendo la secuencia Pomodoro:
@@ -469,10 +534,11 @@ public class MainActivity extends AppCompatActivity {
         tvSessionsCount.setText(text);
     }
 
+
     /**
-     * TODO: Documentar.
-     * 
-     * @param mode ...
+     * Marca el chip que corresponde al modo correspondiente
+     *
+     * @param mode Modo actual del temporizador.
      */
     private void selectChipForMode(SessionMode mode) {
         // El identificador del chip a seleccionar.
@@ -522,4 +588,7 @@ public class MainActivity extends AppCompatActivity {
         // Asignamos el color del borde para resaltar al chip activo.
         activeChip.setChipStrokeColor(ColorStateList.valueOf(colorAccent));
     }
+
+
 }
+

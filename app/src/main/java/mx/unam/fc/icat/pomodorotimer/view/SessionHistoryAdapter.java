@@ -11,10 +11,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.chip.Chip;
 
+import java.util.ArrayList;
 import java.util.List;
 
-import mx.unam.fc.icat.focusmony.R;
-import mx.unam.fc.icat.focusmony.model.Session;
+import mx.unam.fc.icat.pomodorotimer.R;
+import mx.unam.fc.icat.pomodorotimer.model.Session;
 
 /**
  * Adaptador para gestionar y reciclar las vistas del historial de sesiones.
@@ -65,7 +66,7 @@ public class SessionHistoryAdapter extends RecyclerView.Adapter<SessionHistoryAd
      * @param res      Referencia a los recursos de la aplicación.
      */
     public SessionHistoryAdapter(List<Session> sessions, Resources res) {
-        this.DATASET = sessions;
+        this.DATASET = new ArrayList<>(sessions);
         this.RESOURCES = res;
     }
 
@@ -124,6 +125,25 @@ public class SessionHistoryAdapter extends RecyclerView.Adapter<SessionHistoryAd
      */
     @Override
     public int getItemCount() {
+
         return DATASET.size();
+    }
+
+    /**
+     * Reemplaza el conjunto de datos completo y notifica al RecyclerView
+     * para que refresque todas las celdas visibles.
+     *
+     * <p>Se usa cuando el usuario cambia el filtro de período en
+     * {@link SessionHistoryActivity}.</p>
+     *
+     * @param newSessions Nueva lista de sesiones a mostrar.
+     *                    Si es {@code null} se vacía la lista.
+     */
+    public void updateDataset(List<Session> newSessions) {
+        this.dataset.clear();
+        if (newSessions != null) {
+            this.dataset.addAll(newSessions);
+        }
+        notifyDataSetChanged();
     }
 }
