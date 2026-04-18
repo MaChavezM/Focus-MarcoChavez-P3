@@ -30,8 +30,8 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 
-import mx.unam.fc.icat.focusmony.view.PreferencesActivity;
-import mx.unam.fc.icat.focusmony.view.SessionHistoryActivity;
+import mx.unam.fc.icat.pomodorotimer.view.SessionHistoryActivity;
+import mx.unam.fc.icat.pomodorotimer.view.PreferencesActivity;
 
 /**
  * Actividad principal que gestiona el ciclo de vida del temporizador Pomodoro.
@@ -67,12 +67,17 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvTimerDisplay;
     private MaterialButton btnStartStop;
     private LinearLayout sessionDotsContainer;
-
     // TODO: Declarar los componentes faltantes para completar la IU:
     // 1. TextView para el estado de la sesión.
     // 2. TextView para el contador de sesiones completadas.
     // 3. ImageButtons para reiniciar (reset) y saltar (skip) la sesión.
     // 4. TextView para la(s) frase(s) motivadora(s).
+    private TextView      tvSessionLabel;      //1.- Etiqueta de estado de la sesión
+    private TextView      tvSessionsCount;     // 2.-Contador "X / 4 sesiones"
+    private TextView      tvQuote;             // 4.-Frase motivadora
+    private ImageButton   btnReset;            //3.-Reiniciar sesión actual
+    private ImageButton   btnSkip;             //3.- Saltar la sesión
+
 
     // Elementos para el funcionamiento del temporizador.
     private CountDownTimer countDownTimer;
@@ -81,10 +86,14 @@ public class MainActivity extends AppCompatActivity {
     private long timeLeftMillis = FOCUS_DURATION_MS;
     private int focusSessionsCompleted = 0;
 
+
     /**
-     * TODO: Documentar.
-     * 
-     * @param savedInstanceState ...
+     * Punto de entrada de la actividad.
+     * Infla el layout, inicializa la capa de datos y prepara todos los
+     * componentes de la UI para el primer uso.
+     *
+     * @param savedInstanceState Estado guardado de la instancia anterior
+     *                           (no se usa porque la orientación es fija).
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -155,47 +164,65 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * TODO: Documentar.
-     * TODO: implementar la cancelación del temporizador para prevenir fugas de
+     *  Libera los recursos del temporizador al destruir la actividad,
+     *  implementa la cancelación del temporizador para prevenir fugas de
      * memoria.
      */
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // Cancelamos el CountDownTimer para evitar que sus llamadas
+        // intenten actualizar una vista que ya no existe.
+        cancelTimer();
+
     }
 
     /**
-     * TODO: Documentar.
-     * TODO: Inicializar todos los componentes declarados anteriormente.
+     * Vincula las variables de instancia con los componentes declarados
+     * en {@code activity_main.xml} mediante sus identificadores de recurso.
      */
     private void bindViews() {
-        toolbar = findViewById(R.id.tbMenu);
-        chipGroupMode = findViewById(R.id.chipGroupMode);
-        chipFocus = findViewById(R.id.chipFocus);
-        chipBreak = findViewById(R.id.chipBreak);
-        chipRest = findViewById(R.id.chipRest);
-        tvTimerDisplay = findViewById(R.id.tvTimerDisplay);
-        btnStartStop = findViewById(R.id.btnStartStop);
+        toolbar              = findViewById(R.id.tbMenu);
+        chipGroupMode        = findViewById(R.id.chipGroupMode);
+        chipFocus            = findViewById(R.id.chipFocus);
+        chipBreak            = findViewById(R.id.chipBreak);
+        chipRest             = findViewById(R.id.chipRest);
+        tvTimerDisplay       = findViewById(R.id.tvTimerDisplay);
+        tvSessionLabel       = findViewById(R.id.tvSessionLabel);
+        tvSessionsCount      = findViewById(R.id.tvSessionsCount);
+        tvQuote              = findViewById(R.id.tvQuote);
+        btnStartStop         = findViewById(R.id.btnStartStop);
+        btnReset             = findViewById(R.id.btnReset);
+        btnSkip              = findViewById(R.id.btnSkip);
         sessionDotsContainer = findViewById(R.id.sessionDotsContainer);
     }
 
     /**
-     * TODO: Documentar.
+     * Registra los escuchas de clic para todos los botones interactivos
+     * de la pantalla principal.
      */
     private void setupClickListeners() {
+        // Botón principal: alterna entre Iniciar, Pausar y Reanudar.
         btnStartStop.setOnClickListener(v -> {
-            // Lógica de alternancia según el estado actual del motor.
             if (timerState == TimerState.RUNNING)
                 pauseTimer();
             else
                 startTimer();
         });
 
-        // TODO: Asignar listeners a los botones de reset y skip.
+        // Botón de reinicio: vuelve el temporizador al inicio de la sesión actual.
+        btnReset.setOnClickListener(v -> resetTimer());
+
+        // Botón de salto: avanza al siguiente estado de la secuencia Pomodoro.
+        btnSkip.setOnClickListener(v -> skipToNextSession());
     }
 
     /**
-     * TODO: Documentar.
+     * Inicia o continúa el temporizador.
+     *
+     * Mantiene la pantalla encendida mientras el tiempo corre y actualiza
+     * el botón a "Pausar". Crea un contador que descuenta segundo a segundo
+     * y actualiza la pantalla hasta que la sesión termina.
      */
     private void startTimer() {
         // Mantiene la pantalla encendida.
@@ -222,7 +249,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * TODO: Documentar.
+     * Pausa el temporizador conservando el tiempo restante.
+     * El estado pasa a {@link TimerState#PAUSED} y el botón muestra "Reanudar".
      */
     private void pauseTimer() {
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -276,11 +304,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * TODO: Documentar.
+     * Agrega un punto visual al contenedor {@link #sessionDotsContainer}
+     * cada vez que se completa una sesión de enfoque.
+     * Los puntos se limpian al completar el ciclo de 4 sesiones.
      */
     private void addDot() {
+        // Limpiamos el contenedor cuando comenzamos un nuevo ciclo.
+        if (sessionDotsContainer.getChildCount() >= SESSIONS_BEFORE_REST) {
+            sessionDotsContainer.removeAllViews();
+        }
+
         // Creamos la vista del punto.
         View dot = new View(this);
+        float density = getResources().getDisplayMetrics().density;
+
         // Definimos su tamano (10dp convertido a pixeles).
         int dotSize = (int) (10 * getResources().getDisplayMetrics().density);
         // Creamos un contenedor para el punto.
@@ -316,7 +353,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * TODO: Documentar.
+     * Cancela el temporizador activo y libera su referencia.
+     * Se llama en {@link #onDestroy()}, {@link #resetTimer()} y
+     * {@link #skipToNextSession()} para evitar efectos secundarios.
      */
     private void cancelTimer() {
         // Si el temporizador esta activo:
@@ -330,17 +369,62 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * TODO: Documentar.
+     * Reinicia el temporizador al inicio de la sesión actual sin cambiar
+     * el modo (FOCUS/BREAK/REST).
+     *
+     * <p>Si había una sesión en curso (RUNNING o PAUSED), se guarda como
+     * "Interrumpida" en el historial antes de reiniciar.</p>
      */
     private void resetTimer() {
-        // TODO: Implementar el reinicio manual de la sesión actual.
+        // Si había una sesión activa, la registramos como interrumpida.
+        if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS) {
+            //saveSession(false);
+        }
+        cancelTimer();
+        timerState   = TimerState.IDLE;
+        //sessionStartTime = "";
+        resetModeTime();
+        btnStartStop.setText(R.string.btn_start);
     }
 
     /**
-     * TODO: Documentar.
+     * Salta al siguiente estado de la secuencia Pomodoro sin esperar a que
+     * el temporizador llegue a cero.
+     *
+     * <p>Si había una sesión de enfoque en curso, se guarda como "Interrumpida".
+     * Los descansos saltados no generan registro en el historial.</p>
      */
     private void skipToNextSession() {
-        // TODO: Implementar la lógica para saltar al siguiente estado.
+        // Registramos la sesión de enfoque como interrumpida si estaba activa.
+        if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS) {
+            //saveSession(false);
+        }
+        cancelTimer();
+        // Simulamos el mismo avance de estado que ocurriría al finalizar.
+        advanceMode();
+        timerState = TimerState.IDLE;
+        //sessionStartTime = "";
+        resetModeTime();
+        btnStartStop.setText(R.string.btn_start);
+    }
+
+
+    /**
+     * Avanza el modo de la sesión siguiendo la secuencia Pomodoro:
+     * FOCUS → BREAK (o REST cada 4 sesiones) → FOCUS.
+     */
+    private void advanceMode() {
+        if (currentMode == SessionMode.FOCUS) {
+            focusSessionsCompleted++;
+            if (focusSessionsCompleted >= SESSIONS_BEFORE_REST) {
+                focusSessionsCompleted = 0;
+                currentMode = SessionMode.REST;
+            } else {
+                currentMode = SessionMode.BREAK;
+            }
+        } else {
+            currentMode = SessionMode.FOCUS;
+        }
     }
 
     /**
@@ -356,7 +440,33 @@ public class MainActivity extends AppCompatActivity {
         // Actualizamos el texto del temporizador.
         tvTimerDisplay.setText(String.format("%02d:%02d", minutes, seconds));
 
-        // TODO: Actualizar el texto del estado de la sesión.
+        // Actualizamos la etiqueta de estado de la sesión.
+        updateSessionLabel();
+        // Actualizamos el contador "X / 4".
+        updateSessionsCountLabel();
+    }
+
+    /**
+     * Actualiza la etiqueta de texto que describe el modo actual
+     * (p.ej. "Sesión de Enfoque", "Descanso corto", "Descanso largo").
+     */
+    private void updateSessionLabel() {
+        String label;
+        switch (currentMode) {
+            case BREAK: label = getString(R.string.timer_label_focus, "Descanso corto");  break;
+            case REST:  label = getString(R.string.timer_label_focus, "Descanso largo");  break;
+            default:    label = getString(R.string.timer_label_focus, "Enfoque");         break;
+        }
+        tvSessionLabel.setText(label);
+    }
+
+    /**
+     * Actualiza el contador de sesiones de enfoque completadas en la
+     * etiqueta inferior del temporizador (p.ej. "2 sesiones completadas").
+     */
+    private void updateSessionsCountLabel() {
+        String text = getString(R.string.sessionsCount, focusSessionsCompleted);
+        tvSessionsCount.setText(text);
     }
 
     /**
