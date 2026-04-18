@@ -32,7 +32,7 @@ import mx.unam.fc.icat.pomodorotimer.model.Session;
  */
 public class DatabaseHelper extends SQLiteOpenHelper {
 
-    // ── Metadatos de la base de datos ────────────────────────────
+    //  Metadatos de la base de datos
     private static final String DB_NAME    = "focuslab.db";
     private static final int    DB_VERSION = 1;
 

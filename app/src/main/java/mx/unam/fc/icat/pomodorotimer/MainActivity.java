@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
     // Capa de datos
     private SessionManager sessionManager;
 
-    // Formatos de fecha y hora 
+    // Formatos de fecha y hora
     private static final SimpleDateFormat FMT_DATE_DISPLAY =
             new SimpleDateFormat("EEE, dd MMM yyyy", new Locale("es", "MX"));
     private static final SimpleDateFormat FMT_DATE_SORT    =
