@@ -123,17 +123,25 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        // Inflamos nuestra vista.
         setContentView(R.layout.activity_main);
 
-        // Inicializamos los elementos de la IU.
+        // Inicializamos la capa de datos.
+        sessionManager = new SessionManager(this);
+
+        // Pre-calculamos la fecha de hoy para no repetir la operación.
+        Date now = new Date();
+        todaySortDate = FMT_DATE_SORT.format(now);
+
+        // Vinculamos las vistas con sus IDs.
         bindViews();
-        // Habilitamos nuestra barra de herramientas.
+        // Habilitamos la barra de herramientas.
         setSupportActionBar(toolbar);
-        // Asignamos los escuchas.
+        // Registramos los escuchas de los botones.
         setupClickListeners();
-        // Actualizamos la IU.
+        // Pintamos la UI en su estado inicial.
         updateTimerDisplay(timeLeftMillis);
+        // Mostramos la frase motivadora inicial.
+        tvQuote.setText(R.string.quote);
     }
 
     /**
@@ -254,8 +262,14 @@ public class MainActivity extends AppCompatActivity {
         timerState = TimerState.RUNNING;
         btnStartStop.setText(R.string.btn_pause);
 
+        // Registramos la hora de inicio sólo cuando la sesión arranca de cero,
+        // no cuando se reanuda desde pausa.
+        if (sessionStartTime.isEmpty()) {
+            sessionStartTime = FMT_TIME.format(new Date());
+        }
+
         // PRUEBA
-        // addDot();
+         addDot();
 
         // Creamos e inicializamos un contador.
         countDownTimer = new CountDownTimer(timeLeftMillis, 1000) {
@@ -267,6 +281,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFinish() {
+
                 onSessionFinished();
             }
         }.start();
@@ -403,7 +418,7 @@ public class MainActivity extends AppCompatActivity {
         // Si había una sesión activa, la registramos como interrumpida.
         if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS
               && !sessionStartTime.isEmpty()) {
-            saveSession(false);
+            saveSession(true);
         }
         cancelTimer();
         timerState   = TimerState.IDLE;
@@ -423,7 +438,7 @@ public class MainActivity extends AppCompatActivity {
         // Registramos la sesión de enfoque como interrumpida si estaba activa.
         if (timerState != TimerState.IDLE && currentMode == SessionMode.FOCUS &&
                 !sessionStartTime.isEmpty()) {
-            saveSession(false);
+            saveSession(true);
         }
         cancelTimer();
         // Simulamos el mismo avance de estado que ocurriría al finalizar.

@@ -7,7 +7,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.preference.PreferenceManager; // Asegúrate de tener la dependencia
 
-import mx.unam.fc.icat.focusmony.R;
+import mx.unam.fc.icat.pomodorotimer.R;
 
 /**
  * Actividad encargada de gestionar las preferencias del usuario.

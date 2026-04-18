@@ -140,9 +140,9 @@ public class SessionHistoryAdapter extends RecyclerView.Adapter<SessionHistoryAd
      *                    Si es {@code null} se vacía la lista.
      */
     public void updateDataset(List<Session> newSessions) {
-        this.dataset.clear();
+        this.DATASET.clear();
         if (newSessions != null) {
-            this.dataset.addAll(newSessions);
+            this.DATASET.addAll(newSessions);
         }
         notifyDataSetChanged();
     }

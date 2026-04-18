@@ -1,10 +1,10 @@
-package mx.unam.fc.icat.focusmony.view;
+package mx.unam.fc.icat.pomodorotimer.view;
 
 import android.os.Bundle;
 
 import androidx.preference.PreferenceFragmentCompat;
 
-import mx.unam.fc.icat.focusmony.R;
+import mx.unam.fc.icat.pomodorotimer.R;
 
 public class PreferencesFragment extends PreferenceFragmentCompat {
     @Override
